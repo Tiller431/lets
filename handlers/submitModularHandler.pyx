@@ -10,6 +10,7 @@ import tornado.gen
 import tornado.web
 
 import secret.achievements.utils
+from common import generalUtils
 from common.constants import gameModes
 from common.constants import mods
 from common.log import logUtils as log
@@ -104,7 +105,9 @@ class handler(requestsManager.asyncRequestHandler):
 			# Create score object and set its data
 			log.info("{} has submitted a score on {}...".format(username, scoreData[0]))
 			s = score.score()
+			oldStats = userUtils.getUserStats(userID, s.gameMode)
 			s.setDataFromScoreData(scoreData)
+			
 
 			# Set score stuff missing in score data
 			s.playerUserID = userID
@@ -116,6 +119,11 @@ class handler(requestsManager.asyncRequestHandler):
 			# Make sure the beatmap is submitted and updated
 			if beatmapInfo.rankedStatus == rankedStatuses.NOT_SUBMITTED or beatmapInfo.rankedStatus == rankedStatuses.NEED_UPDATE or beatmapInfo.rankedStatus == rankedStatuses.UNKNOWN:
 				log.debug("Beatmap is not submitted/outdated/unknown. Score submission aborted.")
+				return
+			
+			# Check if the ranked status is allowed
+			if beatmapInfo.rankedStatus not in glob.conf.extra["allowed-beatmap-rankstatus"]:
+				log.debug("Beatmap's rankstatus is not allowed to be submitted. Score submission aborted.")
 				return
 
 			# Calculate PP
@@ -134,7 +142,7 @@ class handler(requestsManager.asyncRequestHandler):
 				ppCalcException = e
 
 			# Restrict obvious cheaters
-			if (s.pp >= 700 and s.gameMode == gameModes.STD) and restricted == False:
+			if (glob.conf.extra["submit-config"]["max-std-pp"] >= 0 and s.pp >= glob.conf.extra["submit-config"]["max-std-pp"] and s.gameMode == gameModes.STD) and restricted == False:
 				userUtils.restrict(userID)
 				userUtils.appendNotes(userID, "Restricted due to too high pp gain ({}pp)".format(s.pp))
 				log.warning("**{}** ({}) has been restricted due to too high pp gain **({}pp)**".format(username, userID, s.pp), "cm")
@@ -215,7 +223,8 @@ class handler(requestsManager.asyncRequestHandler):
 				log.warning("**{}** ({}) has been restricted due to missing process list".format(username, userID), "cm")
 
 			# Bake a cake
-			butterCake.bake(self, s)
+			if s.passed == True:
+				butterCake.bake(self, s)
 
 			# Save replay
 			if s.passed == True and s.completed == 3:
@@ -356,11 +365,46 @@ class handler(requestsManager.asyncRequestHandler):
 				# Some debug messages
 				log.debug("Generated output for online ranking screen!")
 				log.debug(msg)
+				
+				userStats = userUtils.getUserStats(userID, s.gameMode)
+				if s.completed == 3 and restricted == False and beatmapInfo.rankedStatus >= rankedStatuses.RANKED and s.pp > 0 and s.gameMode == 0:					
+					glob.redis.publish("scores:new_score", json.dumps({
+					"user":{"username":username, "userID": userID, "rank":userStats["gameRank"],"oldaccuracy":oldStats["accuracy"],"accuracy":userStats["accuracy"], "oldpp":oldStats["pp"],"pp":newUserData["pp"]},
+					"score":{"scoreID": s.scoreID, "mods":s.mods, "accuracy":s.accuracy, "missess":s.cMiss, "combo":s.maxCombo, "pp":s.pp, "rank":newScoreboard.personalBestRank},
+					"beatmap":{"beatmapID": beatmapInfo.beatmapID, "beatmapSetID": beatmapInfo.beatmapSetID, "max_combo":beatmapInfo.maxCombo, "song_name":beatmapInfo.songName}
+					}))
 
+				if s.completed == 3 and restricted == False and beatmapInfo.rankedStatus >= rankedStatuses.LOVED and s.gameMode == 0:					
+					glob.redis.publish("scores:new_score_loved", json.dumps({
+					"user":{"username":username, "userID": userID, "rank":userStats["gameRank"],"oldaccuracy":oldStats["accuracy"],"accuracy":userStats["accuracy"], "oldpp":oldStats["pp"],"pp":newUserData["pp"]},
+					"score":{"scoreID": s.scoreID, "mods":s.mods, "accuracy":s.accuracy, "missess":s.cMiss, "combo":s.maxCombo, "pp":s.pp, "rank":newScoreboard.personalBestRank},
+					"beatmap":{"beatmapID": beatmapInfo.beatmapID, "beatmapSetID": beatmapInfo.beatmapSetID, "max_combo":beatmapInfo.maxCombo, "song_name":beatmapInfo.songName}
+					}))
+
+				if s.completed == 3 and restricted == False and beatmapInfo.rankedStatus >= rankedStatuses.RANKED and s.pp > 0 and s.gameMode == 3:					
+					glob.redis.publish("scores:new_score_m", json.dumps({
+					"user":{"username":username, "userID": userID, "rank":userStats["gameRank"],"oldaccuracy":oldStats["accuracy"],"accuracy":userStats["accuracy"], "oldpp":oldStats["pp"],"pp":newUserData["pp"]},
+					"score":{"scoreID": s.scoreID, "mods":s.mods, "accuracy":s.accuracy, "missess":s.cMiss, "combo":s.maxCombo, "pp":s.pp, "rank":newScoreboard.personalBestRank},
+					"beatmap":{"beatmapID": beatmapInfo.beatmapID, "beatmapSetID": beatmapInfo.beatmapSetID, "max_combo":beatmapInfo.maxCombo, "song_name":beatmapInfo.songName}
+					}))
+
+				if s.completed == 3 and restricted == False and beatmapInfo.rankedStatus >= rankedStatuses.RANKED and s.pp > 0 and s.gameMode == 0:					
+					glob.redis.publish("scores:score_sus", json.dumps({
+					"user":{"username":username, "userID": userID, "rank":userStats["gameRank"],"oldaccuracy":oldStats["accuracy"],"accuracy":userStats["accuracy"], "oldpp":oldStats["pp"],"pp":newUserData["pp"]},
+					"score":{"scoreID": s.scoreID, "mods":s.mods, "accuracy":s.accuracy, "missess":s.cMiss, "combo":s.maxCombo, "pp":s.pp, "rank":newScoreboard.personalBestRank},
+					"beatmap":{"beatmapID": beatmapInfo.beatmapID, "beatmapSetID": beatmapInfo.beatmapSetID, "max_combo":beatmapInfo.maxCombo, "song_name":beatmapInfo.songName}
+					}))
+
+				if s.completed == 3 and restricted == False and beatmapInfo.rankedStatus >= rankedStatuses.RANKED and s.pp > 0 and s.gameMode == 2:					
+					glob.redis.publish("scores:new_score_ctb", json.dumps({
+					"user":{"username":username, "userID": userID, "rank":userStats["gameRank"],"oldaccuracy":oldStats["accuracy"],"accuracy":userStats["accuracy"], "oldpp":oldStats["pp"],"pp":newUserData["pp"]},
+					"score":{"scoreID": s.scoreID, "mods":s.mods, "accuracy":s.accuracy, "missess":s.cMiss, "combo":s.maxCombo, "pp":s.pp, "rank":newScoreboard.personalBestRank},
+					"beatmap":{"beatmapID": beatmapInfo.beatmapID, "beatmapSetID": beatmapInfo.beatmapSetID, "max_combo":beatmapInfo.maxCombo, "song_name":beatmapInfo.songName}
+					}))
 
 				# send message to #announce if we're rank #1
 				if newScoreboard.personalBestRank == 1 and s.completed == 3 and restricted == False:
-					annmsg = "[https://ripple.moe/?u={} {}] achieved rank #1 on [https://osu.ppy.sh/b/{} {}] ({})".format(
+					annmsg = "[https://osu.akatsuki.pw/?u={} {}] achieved rank #1 on [https://osu.ppy.sh/b/{} {}] ({})".format(
 						userID,
 						username.encode().decode("ASCII", "ignore"),
 						beatmapInfo.beatmapID,

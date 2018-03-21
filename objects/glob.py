@@ -11,7 +11,7 @@ except:
 	VERSION = "Unknown"
 ACHIEVEMENTS_VERSION = 0
 
-DATADOG_PREFIX = "lets"
+DATADOG_PREFIX = "RegularPho"
 db = None
 redis = None
 conf = None

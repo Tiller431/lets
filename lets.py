@@ -9,8 +9,9 @@ import tornado.ioloop
 import tornado.web
 from raven.contrib.tornado import AsyncSentryClient
 import redis
+import json
 
-from common.constants import bcolors
+from common.constants import bcolors, mods
 from common.db import dbConnector
 from common.ddog import datadogClient
 from common.log import logUtils as log
@@ -90,6 +91,11 @@ if __name__ == "__main__":
 		# Read config
 		consoleHelper.printNoNl("> Reading config file... ")
 		glob.conf = config.config("config.ini")
+
+		# Read additional config file
+		consoleHelper.printNoNl("> Loading additional config file... ")
+		with open("config.json", "r") as f:
+			glob.conf.extra = json.load(f)
 
 		if glob.conf.default:
 			# We have generated a default config.ini, quit server
@@ -184,6 +190,13 @@ if __name__ == "__main__":
 		# Set achievements version
 		glob.redis.set("lets:achievements_version", glob.ACHIEVEMENTS_VERSION)
 		consoleHelper.printColored("Achievements version is {}".format(glob.ACHIEVEMENTS_VERSION), bcolors.YELLOW)
+
+		# Setup allowed mods
+		ranked_mods = [item for item in glob.conf.extra["rankable-mods"] if glob.conf.extra["rankable-mods"][item]]
+		unranked_mods = [item for item in glob.conf.extra["rankable-mods"] if not glob.conf.extra["rankable-mods"][item]]
+		consoleHelper.printColored("Ranked mods  : {}".format(", ".join(ranked_mods)), bcolors.YELLOW)
+		consoleHelper.printColored("Unranked mods: {}".format(", ".join(unranked_mods)), bcolors.YELLOW)
+		glob.conf.extra["_unranked-mods"] = sum([getattr(mods, item) for item in unranked_mods]) # Store the unranked mods mask in glob
 
 		# Discord
 		if generalUtils.stringToBool(glob.conf.config["discord"]["enable"]):

@@ -1,6 +1,7 @@
 import time
 
 from objects import beatmap
+from common import generalUtils
 from common.constants import gameModes
 from common.log import logUtils as log
 from common.ripple import userUtils
@@ -223,15 +224,20 @@ class score:
 
 			# No duplicates found.
 			# Get right "completed" value
-			personalBest = glob.db.fetch("SELECT id, score FROM scores WHERE userid = %s AND beatmap_md5 = %s AND play_mode = %s AND completed = 3 LIMIT 1", [userID, self.fileMd5, self.gameMode])
+			personalBest = glob.db.fetch("SELECT id,{}score FROM scores WHERE userid = %s AND beatmap_md5 = %s AND play_mode = %s AND completed = 3 LIMIT 1".format(
+					glob.conf.extra["submit-config"]["score-overwrite"] == "score" and " " or " {}, ".format(glob.conf.extra["submit-config"]["score-overwrite"])
+				),
+				[userID, self.fileMd5, self.gameMode])
 			if personalBest is None:
 				# This is our first score on this map, so it's our best score
 				self.completed = 3
 				self.rankedScoreIncrease = self.score
 				self.oldPersonalBest = 0
 			else:
+				self.completed = 3
+				self.calculatePP()
 				# Compare personal best's score with current score
-				if self.score > personalBest["score"]:
+				if getattr(self, glob.conf.extra["submit-config"]["score-overwrite"]) > personalBest[glob.conf.extra["submit-config"]["score-overwrite"]]:
 					# New best score
 					self.completed = 3
 					self.rankedScoreIncrease = self.score-personalBest["score"]
@@ -240,6 +246,7 @@ class score:
 					self.completed = 2
 					self.rankedScoreIncrease = 0
 					self.oldPersonalBest = 0
+				self.pp = 0	
 
 		log.debug("Completed status: {}".format(self.completed))
 
@@ -257,16 +264,13 @@ class score:
 				glob.db.execute("UPDATE scores SET completed = 2 WHERE id = %s", [self.oldPersonalBest])
 
 	def calculatePP(self, b = None):
-		"""
-		Calculate this score's pp value if completed == 3
-		"""
 		if self.completed == 3:
 			# Create beatmap object
 			if b is None:
 				b = beatmap.beatmap(self.fileMd5, 0)
 
 			# Calculate pp
-			if b.rankedStatus >= rankedStatuses.RANKED and b.rankedStatus != rankedStatuses.UNKNOWN and self.gameMode in score.PP_CALCULATORS:
+			if b.rankedStatus in [rankedStatuses.RANKED, rankedStatuses.APPROVED] and self.gameMode in score.PP_CALCULATORS:
 				calculator = score.PP_CALCULATORS[self.gameMode](b, self)
 				self.pp = calculator.pp
 			else:

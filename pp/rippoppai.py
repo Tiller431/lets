@@ -101,6 +101,7 @@ class oppai:
 			if "pp" not in output or "stars" not in output:
 				raise OppaiError("No pp/stars entry in oppai json output")
 			pp = output["pp"]
+
 			stars = output["stars"]
 
 			log.debug("oppai ~> full output: {}".format(output))

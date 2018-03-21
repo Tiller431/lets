@@ -1,6 +1,5 @@
 """
 Wifipiano 2
-
 This file has been written taking by reference code from
 osu-performance (https://github.com/ppy/osu-performance)
 by Tom94, licensed under the GNU AGPL 3 License.
@@ -41,8 +40,9 @@ class piano:
 			# Doubles score if EZ/HT
 			if scoreMods & mods.EASY != 0:
 				scoreMultiplier *= 0.50
-			#if scoreMods & mods.HALFTIME != 0:
-			#	scoreMultiplier *= 0.50
+				
+			if scoreMods & mods.HALFTIME != 0:
+				scoreMultiplier *= 0.50
 
 			# Calculate strain PP
 			if scoreMultiplier <= 0:
@@ -99,6 +99,10 @@ class piano:
 			if scoreMods & mods.SPUNOUT != 0:
 				multiplier *= 0.95
 			if scoreMods & mods.EASY != 0:
+				multiplier *= 0.50
+			if scoreMods & mods.DOUBLETIME != 0:
+				multiplier *= 2.45
+			if scoreMods & mods.HALFTIME != 0:
 				multiplier *= 0.50
 			pp = pow(pow(strainPP, 1.1) + pow(accPP, 1.1), 1.0 / 1.1) * multiplier
 			log.debug("[WIFIPIANO2] Calculated PP: {}".format(pp))
