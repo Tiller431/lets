@@ -216,13 +216,13 @@ class handler(requestsManager.asyncRequestHandler):
 				userUtils.ban(userID)
 				userUtils.appendNotes(userID, "Impossible mod combination {} (score submitter)".format(s.mods))
 
-			# Make sure process list has been passed
-			#if s.completed == 3 and "pl" not in self.request.arguments and not restricted:
-				#userUtils.restrict(userID)
-			#	userUtils.appendNotes(userID, "Restricted due to missing process list while submitting a score (most likely he used a score submitter)")
-				#log.warning("**{}** ({}) has been restricted due to missing process list".format(username, userID), "cm")
-
 			""" God bless peppy
+			# Make sure process list has been passed
+			if s.completed == 3 and "pl" not in self.request.arguments and not restricted:
+				userUtils.restrict(userID)
+				userUtils.appendNotes(userID, "Restricted due to missing process list while submitting a score (most likely he used a score submitter)")
+				log.warning("**{}** ({}) has been restricted due to missing process list".format(username, userID), "cm")
+			
 			# Bake a cake
 			if s.passed == True:
 				butterCake.bake(self, s)
