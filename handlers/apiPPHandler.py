@@ -68,13 +68,22 @@ class handler(requestsManager.asyncRequestHandler):
 			# Print message
 			log.info("Requested pp for beatmap {}".format(beatmapID))
 
+			""" Peppy >:(
 			# Get beatmap md5 from osuapi
 			# TODO: Move this to beatmap object
 			osuapiData = osuapiHelper.osuApiRequest("get_beatmaps", "b={}".format(beatmapID))
 			if osuapiData is None or "file_md5" not in osuapiData or "beatmapset_id" not in osuapiData:
 				raise exceptions.invalidBeatmapException(MODULE_NAME)
+
 			beatmapMd5 = osuapiData["file_md5"]
 			beatmapSetID = osuapiData["beatmapset_id"]
+			"""
+			dbData = glob.db.fetch("SELECT beatmap_md5, beatmapset_id, mode FROM beatmaps WHERE beatmap_id = {}".format(beatmapID))
+			if dbData is None:
+				raise exceptions.invalidBeatmapException(MODULE_NAME)
+
+			beatmapMd5 = dbData["beatmap_md5"]
+			beatmapSetID = dbData["beatmapset_id"]
 
 			# Create beatmap object
 			bmap = beatmap.beatmap(beatmapMd5, beatmapSetID)
